@@ -1,0 +1,13 @@
+# Generated review outputs
+graphify-out/
+state/
+docs/reviews/
+review_panel_report.md
+review_panel_report.html
+review_panel_report_run*.md
+review_panel_process.md
+integration_log.jsonl
+
+# Local/editor noise
+.DS_Store
+Thumbs.db
