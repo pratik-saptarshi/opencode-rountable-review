@@ -1,7 +1,7 @@
 ---
 name: plan-review-integrator
 version: 2.1.0
-author: wan-huiyan
+author: nemesis - inspired and updated from wan-huiyan's work
 description: >
   Integrate structured review panel findings into an implementation plan document.
   Takes output from overseer (or any structured review with severity-rated
