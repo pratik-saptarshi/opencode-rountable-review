@@ -1,5 +1,7 @@
 ---
-name: agent-review-panel
+name: overseer
+version: 3.2.0
+author: wan-huiyan
 description: >
   Orchestrate a multi-agent adversarial review panel where several Claude Code
   subagents with different perspectives independently review a piece of work,
@@ -7,7 +9,7 @@ description: >
   judge renders the final verdict. Use this skill whenever the user asks for a
   "review panel", "multi-agent review", "adversarial review", "have agents
   debate this", "review with multiple perspectives", "panel review", "get
-  different opinions on this code/plan/doc", or invokes /agent-review-panel.
+  different opinions on this code/plan/doc", or invokes /overseer.
   Also trigger when a user says things like "I want thorough feedback from
   different angles", "stress-test this design", "red team this", "get a second
   (third, fourth) opinion", "fresh eyes on this", "multiple reviewers",
@@ -20,7 +22,7 @@ description: >
   existing PR comments, skill improvement, peer review, code explanation, or
   writing tests. Supports "deep research mode" when user says "deep review",
   "thorough review", "research review", or passes "deep" to
-  /agent-review-panel — adds web research for domain best practices before
+  /overseer — adds web research for domain best practices before
   launching reviewers. Supports "multi-run union mode" when user says
   "multi-run review", "run N times and merge", "run twice", "run 3 times",
   or "maximum coverage review" — repeats the panel with rotated persona sets
@@ -31,7 +33,7 @@ description: >
   composition/seam bugs.
 ---
 
-# Agent Review Panel v3.2.0
+# Overseer v3.2.0
 
 A multi-agent adversarial review system based on nine research foundations:
 ChatEval (ICLR 2024), AutoGen, Du et al. (ICML 2024), MachineSoM (ACL 2024),
@@ -64,7 +66,7 @@ It expects the user to specify (or let it auto-detect) what to review.
 
 This skill depends on the Agent tool to launch parallel subagent reviewers and
 requires bash for context gathering (grep, file reads). All agents MUST use
-`model: "opus"`. This includes VoltAgent specialist agents launched via
+`model: "opus"`. This includes Agent specialist agents launched via
 `subagent_type` — always pass `model: "opus"` explicitly alongside
 `subagent_type` to override the agent's default model. Omitting it causes
 the launched agent to fall through to its own frontmatter-declared model
@@ -79,9 +81,9 @@ expandable issue cards. If the CDNs are unreachable, the HTML degrades
 gracefully: layout and text remain readable, charts show a placeholder, code
 blocks render as unstyled monospace.
 
-**Optional enhancement:** When VoltAgent specialist agents are installed, the
+**Optional enhancement:** When Agent specialist agents are installed, the
 panel can use them instead of generic persona-prompted agents for stronger
-domain-specific reviews. See "VoltAgent Integration" section below.
+domain-specific reviews. See "Agent Integration" section below.
 
 This skill is scoped to multi-perspective adversarial review. For skill
 improvement requests, use schliff instead. For post-review plan updates,
@@ -307,6 +309,39 @@ Replace Devil's Advocate first if at cap (keep ≥1 DA if panel ≥4).
 **CRITICAL: If work contains ANY code/SQL/config snippets, always include
 Code Quality Auditor — the #1 cause of missed details in v1.**
 
+The Parallel Persona Orchestration Contract below governs how these personas
+launch, synchronize, and hand off to dependent reducer phases.
+
+### Persona Registry
+
+Use this stable persona registry when selecting and launching panel reviewers:
+
+| Persona | Primary Lens | Default Use |
+|---|---|---|
+| Correctness Hawk | Bugs, logic errors, edge cases | Code/implementation reviews |
+| Architecture Critic | Design patterns, coupling, extensibility | Code and architecture reviews |
+| Security Auditor | Vulnerabilities, injection, auth gaps | Security-sensitive code, auth, data handling |
+| Devil's Advocate | Challenges assumptions and alternatives | Any panel with 4+ reviewers |
+| Feasibility Analyst | Technical feasibility and delivery realism | Pure plans/designs and mixed plans |
+| Stakeholder Advocate | Business value, user impact, ROI | Product, roadmap, or stakeholder-facing plans |
+| Risk Assessor | Failure modes, dependencies, rollout risk | Pure plans/designs and mixed plans |
+| Code Quality Auditor | Line-by-line scrutiny of code/SQL/config snippets | Any work containing code, SQL, or config |
+| Clarity Editor | Structure, readability, user comprehension | Documentation reviews |
+| Technical Accuracy Reviewer | Factual correctness and API/technical claims | Documentation and technical prose |
+| Completeness Checker | Missing sections, edge cases, unanswered questions | Documentation and checklist-heavy plans |
+| Signal-detected specialists | Domain-specific checklist verification | Auto-added from content signals, up to 6 total reviewers |
+
+### Parallel Persona Orchestration Contract
+
+The panel orchestrator MUST batch independent persona work instead of serializing it:
+
+1. **Build once, launch together.** After context gathering, build a single Context Brief and launch the selected Phase 3 personas in one parallel Agent-tool batch. Each persona receives the same Context Brief, full work content, review mode, and persona-specific instructions.
+2. **Keep independent review isolated.** Phase 3 reviewers MUST NOT see other reviewers' outputs. Isolation is what makes the panel an ensemble rather than a single shared-context review.
+3. **Parallelize by round, synthesize between rounds.** Phases 4, 5, and 7 launch one parallel batch per phase or debate round. The orchestrator waits for the full batch, writes/summarizes outputs, then starts the next dependent round.
+4. **Parallelize dispute verification.** Phase 13 launches one verification agent per independent dispute/action item in a single batch, subject to the tier/resource limits in Phase 13.
+5. **Do not parallelize dependent reducers.** Context gathering, Phase 6 round summaries, Phase 13.5 output existence gate, Phase 14 judge arbitration, Phase 14.5 judge-output verification, and Phase 15 output generation remain sequential because each consumes prior outputs.
+6. **Preserve caps and fallbacks.** Keep the auto-persona cap at 6 total reviewers unless the user explicitly requests multi-run coverage. If a reviewer fails, retry once; proceed with the minimum reviewer count described in Context Management & Files.
+
 ### Reasoning Strategy Assignment (DMAD, ICLR 2025)
 
 | Persona Type | Strategy | Injection |
@@ -322,121 +357,121 @@ Code Quality Auditor — the #1 cause of missed details in v1.**
 
 Correctness, Completeness, Quality, Edge Cases (override if user specifies).
 
-### VoltAgent Integration (v2.9)
+### Agent Integration (v2.9)
 
-VoltAgent specialist agents (127+ across 10 families) have built-in domain
+Agent specialist agents (127+ across 10 families) have built-in domain
 expertise via their system prompts, making them stronger reviewers than generic
 persona-prompted agents. When available, the panel should **upgrade** personas
-to VoltAgent agents. Full catalog: github.com/VoltAgent/awesome-claude-code-subagents
+to Agent agents. Full catalog: github.com/Agent/awesome-claude-code-subagents
 
-**Step 1: Check availability.** During Phase 1 setup, check whether VoltAgent
+**Step 1: Check availability.** During Phase 1 setup, check whether Agent
 agents are available by scanning the system-reminder agent list for any
-`voltagent-*` prefixed agents. Note which families are installed.
+`agent-*` prefixed agents. Note which families are installed.
 
 **Step 2: Map personas to specialists.** Use this mapping table.
 *(When launching any persona via `subagent_type`, ALWAYS pass `model: "opus"`. v2.14.)*
 
 #### Core Persona Mapping (review panel built-in personas)
 
-| Persona | Primary VoltAgent | Alt VoltAgent | Fallback |
+| Persona | Primary Agent | Alt Agent | Fallback |
 |---|---|---|---|
-| Correctness Hawk | `voltagent-qa-sec:code-reviewer` | `voltagent-qa-sec:debugger` | Generic + prompt |
-| Architecture Critic | `voltagent-qa-sec:architect-reviewer` | `voltagent-infra:cloud-architect` | Generic + prompt |
-| Security Auditor | `voltagent-qa-sec:security-auditor` | `voltagent-qa-sec:penetration-tester` | Generic + prompt |
-| Code Quality Auditor | `voltagent-qa-sec:code-reviewer` | | Generic + prompt |
-| Feasibility Analyst | `voltagent-data-ai:data-scientist` | `voltagent-biz:business-analyst` | Generic + prompt |
-| Risk Assessor | `voltagent-qa-sec:chaos-engineer` | `voltagent-biz:risk-manager` | Generic + prompt |
-| Performance Specialist | `voltagent-qa-sec:performance-engineer` | `voltagent-infra:sre-engineer` | Generic + prompt |
-| Stakeholder Advocate | `voltagent-biz:product-manager` | `voltagent-biz:business-analyst` | Generic + prompt |
+| Correctness Hawk | `agent-qa-sec:code-reviewer` | `agent-qa-sec:debugger` | Generic + prompt |
+| Architecture Critic | `agent-qa-sec:architect-reviewer` | `agent-infra:cloud-architect` | Generic + prompt |
+| Security Auditor | `agent-qa-sec:security-auditor` | `agent-qa-sec:penetration-tester` | Generic + prompt |
+| Code Quality Auditor | `agent-qa-sec:code-reviewer` | | Generic + prompt |
+| Feasibility Analyst | `agent-data-ai:data-scientist` | `agent-biz:business-analyst` | Generic + prompt |
+| Risk Assessor | `agent-qa-sec:chaos-engineer` | `agent-biz:risk-manager` | Generic + prompt |
+| Performance Specialist | `agent-qa-sec:performance-engineer` | `agent-infra:sre-engineer` | Generic + prompt |
+| Stakeholder Advocate | `agent-biz:product-manager` | `agent-biz:business-analyst` | Generic + prompt |
 | Devil's Advocate | Generic + prompt | | (intentionally generic) |
-| Data Quality Auditor | `voltagent-data-ai:data-analyst` | `voltagent-data-ai:data-engineer` | Generic + prompt |
-| Reliability/SRE | `voltagent-infra:sre-engineer` | `voltagent-infra:devops-incident-responder` | Generic + prompt |
-| DevOps/Infra | `voltagent-infra:devops-engineer` | `voltagent-infra:platform-engineer` | Generic + prompt |
-| Database Specialist | `voltagent-data-ai:database-optimizer` | `voltagent-data-ai:postgres-pro` | Generic + prompt |
-| Clarity Editor | `voltagent-dev-exp:documentation-engineer` | `voltagent-biz:technical-writer` | Generic + prompt |
-| Technical Accuracy | `voltagent-qa-sec:code-reviewer` | | Generic + prompt |
-| Completeness Checker | `voltagent-qa-sec:qa-expert` | | Generic + prompt |
+| Data Quality Auditor | `agent-data-ai:data-analyst` | `agent-data-ai:data-engineer` | Generic + prompt |
+| Reliability/SRE | `agent-infra:sre-engineer` | `agent-infra:devops-incident-responder` | Generic + prompt |
+| DevOps/Infra | `agent-infra:devops-engineer` | `agent-infra:platform-engineer` | Generic + prompt |
+| Database Specialist | `agent-data-ai:database-optimizer` | `agent-data-ai:postgres-pro` | Generic + prompt |
+| Clarity Editor | `agent-dev-exp:documentation-engineer` | `agent-biz:technical-writer` | Generic + prompt |
+| Technical Accuracy | `agent-qa-sec:code-reviewer` | | Generic + prompt |
+| Completeness Checker | `agent-qa-sec:qa-expert` | | Generic + prompt |
 
 #### Signal-Detected Specialist Mapping (auto-added by content signals)
 
 When content signals trigger auto-addition of specialist reviewers, use these
-VoltAgent agents instead of generic personas:
+Agent agents instead of generic personas:
 
-| Content Signal | Auto-Add Persona | VoltAgent `subagent_type` |
+| Content Signal | Auto-Add Persona | Agent `subagent_type` |
 |---|---|---|
-| SQL / database queries | Data Quality Auditor | `voltagent-data-ai:database-optimizer` |
-| Terraform / IaC | Infrastructure Reviewer | `voltagent-infra:terraform-engineer` |
-| Terragrunt | Infrastructure Reviewer | `voltagent-infra:terragrunt-expert` |
-| Docker / containers | Container Reviewer | `voltagent-infra:docker-expert` |
-| Kubernetes / k8s | K8s Reviewer | `voltagent-infra:kubernetes-specialist` |
-| CI/CD / pipelines | Pipeline Reviewer | `voltagent-infra:deployment-engineer` |
-| ML / model training | ML Reviewer | `voltagent-data-ai:ml-engineer` |
-| LLM / prompts | LLM Reviewer | `voltagent-data-ai:llm-architect` |
-| NLP / text processing | NLP Reviewer | `voltagent-data-ai:nlp-engineer` |
-| React / frontend | Frontend Reviewer | `voltagent-lang:react-specialist` |
-| TypeScript | TS Reviewer | `voltagent-lang:typescript-pro` |
-| Python | Python Reviewer | `voltagent-lang:python-pro` |
-| Go / Golang | Go Reviewer | `voltagent-lang:golang-pro` |
-| Rust | Rust Reviewer | `voltagent-lang:rust-engineer` |
-| Java / Spring | Java Reviewer | `voltagent-lang:java-architect` |
-| .NET / C# | .NET Reviewer | `voltagent-lang:csharp-developer` |
-| Ruby / Rails | Rails Reviewer | `voltagent-lang:rails-expert` |
-| PHP / Laravel | PHP Reviewer | `voltagent-lang:laravel-specialist` |
-| Swift / iOS | iOS Reviewer | `voltagent-lang:swift-expert` |
-| Flutter / Dart | Flutter Reviewer | `voltagent-lang:flutter-expert` |
-| GraphQL | GraphQL Reviewer | `voltagent-core-dev:graphql-architect` |
-| WebSocket / real-time | Real-time Reviewer | `voltagent-core-dev:websocket-engineer` |
-| Microservices | Architecture Reviewer | `voltagent-core-dev:microservices-architect` |
-| API design | API Reviewer | `voltagent-core-dev:api-designer` |
-| Network / DNS / routing | Network Reviewer | `voltagent-infra:network-engineer` |
-| Azure | Azure Reviewer | `voltagent-infra:azure-infra-engineer` |
-| Active Directory | AD Security Reviewer | `voltagent-qa-sec:ad-security-reviewer` |
-| PowerShell | PowerShell Reviewer | `voltagent-qa-sec:powershell-security-hardening` |
-| Compliance / GDPR / SOC2 | Compliance Reviewer | `voltagent-qa-sec:compliance-auditor` |
-| Accessibility / a11y | Accessibility Reviewer | `voltagent-qa-sec:accessibility-tester` |
-| Error handling / logging | Error Reviewer | `voltagent-qa-sec:error-detective` |
-| Test automation | Test Reviewer | `voltagent-qa-sec:test-automator` |
-| Blockchain / Web3 | Blockchain Reviewer | `voltagent-domains:blockchain-developer` |
-| Payment / fintech | Fintech Reviewer | `voltagent-domains:fintech-engineer` |
-| IoT / embedded | Embedded Reviewer | `voltagent-domains:embedded-systems` |
-| SEO | SEO Reviewer | `voltagent-domains:seo-specialist` |
-| Quant / financial models | Quant Reviewer | `voltagent-domains:quant-analyst` |
+| SQL / database queries | Data Quality Auditor | `agent-data-ai:database-optimizer` |
+| Terraform / IaC | Infrastructure Reviewer | `agent-infra:terraform-engineer` |
+| Terragrunt | Infrastructure Reviewer | `agent-infra:terragrunt-expert` |
+| Docker / containers | Container Reviewer | `agent-infra:docker-expert` |
+| Kubernetes / k8s | K8s Reviewer | `agent-infra:kubernetes-specialist` |
+| CI/CD / pipelines | Pipeline Reviewer | `agent-infra:deployment-engineer` |
+| ML / model training | ML Reviewer | `agent-data-ai:ml-engineer` |
+| LLM / prompts | LLM Reviewer | `agent-data-ai:llm-architect` |
+| NLP / text processing | NLP Reviewer | `agent-data-ai:nlp-engineer` |
+| React / frontend | Frontend Reviewer | `agent-lang:react-specialist` |
+| TypeScript | TS Reviewer | `agent-lang:typescript-pro` |
+| Python | Python Reviewer | `agent-lang:python-pro` |
+| Go / Golang | Go Reviewer | `agent-lang:golang-pro` |
+| Rust | Rust Reviewer | `agent-lang:rust-engineer` |
+| Java / Spring | Java Reviewer | `agent-lang:java-architect` |
+| .NET / C# | .NET Reviewer | `agent-lang:csharp-developer` |
+| Ruby / Rails | Rails Reviewer | `agent-lang:rails-expert` |
+| PHP / Laravel | PHP Reviewer | `agent-lang:laravel-specialist` |
+| Swift / iOS | iOS Reviewer | `agent-lang:swift-expert` |
+| Flutter / Dart | Flutter Reviewer | `agent-lang:flutter-expert` |
+| GraphQL | GraphQL Reviewer | `agent-core-dev:graphql-architect` |
+| WebSocket / real-time | Real-time Reviewer | `agent-core-dev:websocket-engineer` |
+| Microservices | Architecture Reviewer | `agent-core-dev:microservices-architect` |
+| API design | API Reviewer | `agent-core-dev:api-designer` |
+| Network / DNS / routing | Network Reviewer | `agent-infra:network-engineer` |
+| Azure | Azure Reviewer | `agent-infra:azure-infra-engineer` |
+| Active Directory | AD Security Reviewer | `agent-qa-sec:ad-security-reviewer` |
+| PowerShell | PowerShell Reviewer | `agent-qa-sec:powershell-security-hardening` |
+| Compliance / GDPR / SOC2 | Compliance Reviewer | `agent-qa-sec:compliance-auditor` |
+| Accessibility / a11y | Accessibility Reviewer | `agent-qa-sec:accessibility-tester` |
+| Error handling / logging | Error Reviewer | `agent-qa-sec:error-detective` |
+| Test automation | Test Reviewer | `agent-qa-sec:test-automator` |
+| Blockchain / Web3 | Blockchain Reviewer | `agent-domains:blockchain-developer` |
+| Payment / fintech | Fintech Reviewer | `agent-domains:fintech-engineer` |
+| IoT / embedded | Embedded Reviewer | `agent-domains:embedded-systems` |
+| SEO | SEO Reviewer | `agent-domains:seo-specialist` |
+| Quant / financial models | Quant Reviewer | `agent-domains:quant-analyst` |
 
 #### Multi-Agent Orchestration Mapping (for pre/post-panel phases)
 
 All launches below MUST pass `model: "opus"` explicitly (v2.14).
 
-| Review Phase | VoltAgent `subagent_type` | Use When |
+| Review Phase | Agent `subagent_type` | Use When |
 |---|---|---|
-| Data Flow Trace (Phase 2) | `voltagent-data-ai:data-engineer`, `model: "opus"` | Trace data paths, document schemas at boundaries (v2.14) |
-| Completeness Audit (Phase 8) | `voltagent-meta:knowledge-synthesizer`, `model: "opus"` | Synthesize what the panel missed |
-| Claim Verification (Phase 10) | `voltagent-qa-sec:code-reviewer`, `model: "opus"` | Verify line-number citations |
-| Severity Verification (Phase 11) | `voltagent-qa-sec:debugger`, `model: "opus"` | Read actual code for P0/P1 findings |
+| Data Flow Trace (Phase 2) | `agent-data-ai:data-engineer`, `model: "opus"` | Trace data paths, document schemas at boundaries (v2.14) |
+| Completeness Audit (Phase 8) | `agent-meta:knowledge-synthesizer`, `model: "opus"` | Synthesize what the panel missed |
+| Claim Verification (Phase 10) | `agent-qa-sec:code-reviewer`, `model: "opus"` | Verify line-number citations |
+| Severity Verification (Phase 11) | `agent-qa-sec:debugger`, `model: "opus"` | Read actual code for P0/P1 findings |
 | Tier Refinement Advisor (Phase 12b) | Generic, `model: "opus"` | (must be domain-neutral to refine tiers) |
 | Verification Agents (Phase 13) | Persona-matched — see Phase 13 table, `model: "opus"` | Each agent matched to claim type |
 | Supreme Judge (Phase 14) | Generic, `model: "opus"` | (judge must be domain-neutral) |
 | Judge-Output Verifier (Phase 14.5) | Generic, `model: "opus"` | Re-verifies judge-introduced P0/P1 against ground truth via grep/Read/git (v3.2.0) |
-| HTML Report Agent (Phase 15.3) | `voltagent-lang:javascript-pro`, `model: "opus"` | Generate interactive HTML dashboard with expandable issue cards (v2.15). Reads from disk: Phase 15.1 report + Phase 15.2 process history + rendering spec from prompt-templates.md (v2.16.4). Loads Tailwind, Chart.js, and Prism.js via CDN. |
-| Merge Agent (Phase 16) | `voltagent-meta:knowledge-synthesizer`, `model: "opus"` | Deduplicate + score stability in multi-run mode (v2.14) |
+| HTML Report Agent (Phase 15.3) | `agent-lang:javascript-pro`, `model: "opus"` | Generate interactive HTML dashboard with expandable issue cards (v2.15). Reads from disk: Phase 15.1 report + Phase 15.2 process history + rendering spec from prompt-templates.md (v2.16.4). Loads Tailwind, Chart.js, and Prism.js via CDN. |
+| Merge Agent (Phase 16) | `agent-meta:knowledge-synthesizer`, `model: "opus"` | Deduplicate + score stability in multi-run mode (v2.14) |
 
 **Step 3: Suggest installation when beneficial.** If a selected persona would
-benefit from a VoltAgent agent but the agent family is not available, suggest
+benefit from a Agent agent but the agent family is not available, suggest
 installation to the user:
 
-> "This review would benefit from VoltAgent specialist agents for deeper
+> "This review would benefit from Agent specialist agents for deeper
 > domain-specific analysis. You can install the relevant families with:
 >
 > **Quick install (CLI):**
-> `claude plugin install voltagent-qa-sec`  — security, code review, testing
-> `claude plugin install voltagent-data-ai` — data science, ML, databases
-> `claude plugin install voltagent-infra`   — DevOps, cloud, Terraform
-> `claude plugin install voltagent-lang`    — language specialists (TS, Python, Go, Rust)
-> `claude plugin install voltagent-biz`     — product, business analysis
-> `claude plugin install voltagent-domains` — fintech, blockchain, IoT
+> `claude plugin install agent-qa-sec`  — security, code review, testing
+> `claude plugin install agent-data-ai` — data science, ML, databases
+> `claude plugin install agent-infra`   — DevOps, cloud, Terraform
+> `claude plugin install agent-lang`    — language specialists (TS, Python, Go, Rust)
+> `claude plugin install agent-biz`     — product, business analysis
+> `claude plugin install agent-domains` — fintech, blockchain, IoT
 >
 > **Or browse via marketplace:**
-> `/plugin marketplace add VoltAgent/awesome-claude-code-subagents`
-> then `/plugin install <name>@voltagent-subagents`
+> `/plugin marketplace add Agent/awesome-claude-code-subagents`
+> then `/plugin install <name>@agent-subagents`
 >
 > Continue without them? They're optional — the review will still work
 > with generic persona-prompted agents."
@@ -446,21 +481,21 @@ to the detected content signals, not all 10. If the user declines or the agents
 aren't available, proceed with the generic fallback silently.
 
 **Step 4: Launch with `subagent_type` AND `model: "opus"`.** When launching Phase 3 agents:
-- `subagent_type: "voltagent-qa-sec:code-reviewer", model: "opus"` (when available)
+- `subagent_type: "agent-qa-sec:code-reviewer", model: "opus"` (when available)
 - Omit `subagent_type`, pass `model: "opus"` explicitly (generic agent fallback)
 
 **CRITICAL (v2.14):** ALWAYS pass `model: "opus"` even when using `subagent_type`.
-VoltAgent agents may declare their own default model (sonnet, haiku) in their
+Agent agents may declare their own default model (sonnet, haiku) in their
 frontmatter. Without an explicit override, the panel silently runs on mixed
-models, producing different reasoning depths across runs. The VoltAgent
+models, producing different reasoning depths across runs. The Agent
 agent's value lives in its system prompt and tool access, NOT its default
 model. Forcing opus preserves the domain expertise while guaranteeing
 consistent reasoning depth. This fix resolves an invisible source of
 cross-run variance documented in the v2.10→v2.14 consistency analysis.
 
-The persona prompt is STILL included even when using VoltAgent agents — it
+The persona prompt is STILL included even when using Agent agents — it
 provides the review-panel-specific context (agreement intensity, reasoning
-strategy, evaluation criteria) that the VoltAgent agent doesn't have natively.
+strategy, evaluation criteria) that the Agent agent doesn't have natively.
 
 ---
 
@@ -529,8 +564,8 @@ points and ranks them by data complexity:
 
 ### The Data Flow Tracer Agent
 
-Single agent (`model: "opus"`). VoltAgent mapping: `voltagent-data-ai:data-engineer`
-primary, `voltagent-qa-sec:code-reviewer` fallback. **Always pass `model: "opus"`**
+Single agent (`model: "opus"`). Agent mapping: `agent-data-ai:data-engineer`
+primary, `agent-qa-sec:code-reviewer` fallback. **Always pass `model: "opus"`**
 even when using `subagent_type`.
 
 Uses the **semi-formal certificate approach** from Meta's 2026 agentic code
@@ -600,7 +635,7 @@ confirmation instead.
 ## Phase 3: Independent Review (Round 0)
 
 Launch ALL reviewer agents **in parallel** using Agent tool with `model: "opus"`.
-When VoltAgent integration is active, use `subagent_type` from the mapping table.
+When Agent integration is active, use `subagent_type` from the mapping table.
 Each gets the structured prompt from `references/prompt-templates.md` (Phase 3
 template) with their persona, agreement intensity, reasoning strategy, context
 brief, and the full work content inside injection boundaries.
@@ -868,18 +903,18 @@ they share a scarce resource (e.g., web search rate limits).
 
 ### Persona Matching
 
-Classify each claim's type and select the matching verification persona. VoltAgent
+Classify each claim's type and select the matching verification persona. Agent
 agents are preferred when available; fall back to generic + focused prompt.
 
-| Claim Type | Verification Persona | VoltAgent (preferred) |
+| Claim Type | Verification Persona | Agent (preferred) |
 |---|---|---|
-| Statistical / numerical | Data Scientist | `voltagent-data-ai:data-scientist` |
-| Code correctness / logic | Code Reviewer | `voltagent-qa-sec:code-reviewer` |
-| Architecture / design | Architect Reviewer | `voltagent-qa-sec:architect-reviewer` |
-| Security vulnerability | Security Auditor | `voltagent-qa-sec:security-auditor` |
-| Performance / scalability | Performance Engineer | `voltagent-qa-sec:performance-engineer` |
-| Database / SQL | Database Expert | `voltagent-data-ai:database-optimizer` |
-| Infrastructure / ops | SRE | `voltagent-infra:sre-engineer` |
+| Statistical / numerical | Data Scientist | `agent-data-ai:data-scientist` |
+| Code correctness / logic | Code Reviewer | `agent-qa-sec:code-reviewer` |
+| Architecture / design | Architect Reviewer | `agent-qa-sec:architect-reviewer` |
+| Security vulnerability | Security Auditor | `agent-qa-sec:security-auditor` |
+| Performance / scalability | Performance Engineer | `agent-qa-sec:performance-engineer` |
+| Database / SQL | Database Expert | `agent-data-ai:database-optimizer` |
+| Infrastructure / ops | SRE | `agent-infra:sre-engineer` |
 | Framing / narrative | Domain expert | Generic + domain context |
 | Business logic / feasibility | Business Analyst | Generic + business context |
 | Default / unclear | Verification Agent | Generic + focused prompt |
@@ -1010,7 +1045,7 @@ P0/P1, so judge-introduced findings bypass every prior verification phase.
 A 2026-04-27 README review run produced a hallucinated "12 unresolved git
 conflict markers" P0 (the file was clean — `wc -l` and `grep -c` both
 confirmed) and that single fabricated finding drove a 3/10 REJECT-AND-
-REWRITE verdict (issue [#41](https://github.com/wan-huiyan/agent-review-panel/issues/41)).
+REWRITE verdict (issue [#41](https://github.com/wan-huiyan/overseer/issues/41)).
 
 Phase 14.5 closes this gap by re-verifying every judge-introduced P0/P1
 against ground truth before Phase 15.1 generates the report.
@@ -1227,7 +1262,7 @@ Phase 12: Verification Tier Assignment
 
 Phase 13: Targeted Verification Agents
   - [Persona Profile — Verification Agent: Point #1] full profile block
-    (role, matched-claim-type, why matched, tier, VoltAgent subagent or generic)
+    (role, matched-claim-type, why matched, tier, Agent subagent or generic)
   - [Point #1 — Tier — Persona] Full investigation trail, what was searched,
     what was found, full reasoning, verdict
   - [Persona Profile — Verification Agent: Point #2] ...
@@ -1329,7 +1364,7 @@ attribute is a no-op when `responsive: true` and the dashboard always uses
 `maintainAspectRatio: false` — without a height-bounded parent, the canvas
 grows on every layout pass, producing infinite vertical growth on open,
 scroll, resize, or interaction. See issue
-[#42](https://github.com/wan-huiyan/agent-review-panel/issues/42) for the
+[#42](https://github.com/wan-huiyan/overseer/issues/42) for the
 2026-04-27 reproduction. The Phase 15.3 prompt enforces this; the test
 suite asserts every `<canvas>` has a position-relative height-bounded
 parent.
@@ -1378,7 +1413,7 @@ Tell user:
 - Counts: consensus points, disagreements, action items, verification verdicts
 - Top P0 action item (if any)
 - Note: HTML report requires internet connection for Tailwind CSS, Chart.js, and Prism.js CDNs
-- HTML footer should read "Agent Review Panel v3.2.0" (MUST match the full semver from `plugin.json` — update this line whenever the version is bumped)
+- HTML footer should read "Overseer v3.2.0" (MUST match the full semver from `plugin.json` — update this line whenever the version is bumped)
 
 ---
 
@@ -1455,8 +1490,8 @@ runs use complementary sets to maximize coverage diversity.
 
 ## Phase 16: Merge (v2.14, multi-run only)
 
-Single agent (`model: "opus"`). VoltAgent mapping:
-`voltagent-meta:knowledge-synthesizer` (always pass `model: "opus"`).
+Single agent (`model: "opus"`). Agent mapping:
+`agent-meta:knowledge-synthesizer` (always pass `model: "opus"`).
 
 The Merge Agent receives all N per-run reports and executes:
 
@@ -1582,11 +1617,12 @@ local catalog routes intermediate outputs through disk to keep the
 orchestrator window small.
 
 - **Parallel execution:** Phases 3, 4, 5, 7 use single message with multiple
-  Agent tool calls. Phases 2, 8, 9, 10, 11, 12, 13, 14 are sequential (Phase 9 is
-  orchestrator-driven via Bash, not a subagent). Phase 12a is orchestrator
-  logic (no agent). Phase 12b is a single Opus agent. Phase 13 agents launch
-  in parallel (single message with one Agent call per dispute point). Phases
-  15.1, 15.2, and 15.3 run in strict sequence (15.1 → 15.2 → 15.3). Phase
+  Agent tool calls. Phase 13 launches one parallel Agent-tool batch with one
+  verification agent per independent dispute/action item. Phases 2, 8, 9, 10,
+  11, 12, 13.5, 14, and 14.5 are sequential (Phase 9 is orchestrator-driven
+  via Bash, not a subagent). Phase 12a is orchestrator logic (no agent). Phase
+  12b is a single Opus agent. Phases 15.1, 15.2, and 15.3 run in strict
+  sequence (15.1 → 15.2 → 15.3). Phase
   15.3 runs AFTER 15.2 so its agent can read the already-written files from
   disk instead of requiring the orchestrator to inject all data in-context.
 - **Context management:** Full content in Phases 2, 3, 8, 14. Phase 6 summaries
@@ -1605,10 +1641,17 @@ orchestrator window small.
   with rotated personas, then Phase 16 merges. Runs MAY execute in parallel
   (independent orchestrations) or sequentially.
 - **Force opus (v2.14):** ALWAYS pass `model: "opus"` when launching agents,
-  even with `subagent_type`. VoltAgent agents may have sonnet/haiku defaults
+  even with `subagent_type`. Agent agents may have sonnet/haiku defaults
   in their frontmatter; without explicit override, reviewer reasoning depth
   varies across runs. This was an invisible source of cross-run variance
   in v2.9–v2.13.
+
+## Orchestration Anti-Patterns
+
+- **Do not serialize independent persona reviews.** Phases 3, 4, 5, and 7 are batch-parallel by design; serializing them wastes time and increases shared-context contamination risk.
+- **Do not let personas see each other's Phase 3 outputs.** Cross-talk belongs in debate rounds only.
+- **Do not parallelize dependent reducers.** Round summaries, judge arbitration, output existence gates, and report generation depend on prior artifacts and must stay sequential.
+- **Do not bypass reviewer caps by treating signal specialists as a separate batch.** Signal-detected specialists count toward the 6-reviewer cap unless the user explicitly requests multi-run coverage.
 
 ## Edge Cases
 
