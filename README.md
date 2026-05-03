@@ -1,15 +1,17 @@
-# Agent Review Panel for OpenCode
+# Overseer for OpenCode
 
-This repository packages the `agent-review-panel` and `plan-review-integrator` skills for easy installation in OpenCode and other compatible agentic environments. 
+This repository packages the `overseer` and `plan-review-integrator` skills for easy installation in OpenCode and other compatible agentic environments.
+
+Licensed under MIT.
 
 ## Included Skills
 
-1. **agent-review-panel**: Orchestrates a multi-agent adversarial review panel (4–6 reviewers + judge) to evaluate code, plans, or documentation.
+1. **overseer**: Orchestrates a multi-agent adversarial review panel (4–6 reviewers + judge) to evaluate code, plans, or documentation.
 2. **plan-review-integrator**: A companion skill to apply review findings back into implementation plans with full traceability.
 
 ## Quick Start Installation
 
-Run the included installation script to copy the skills and slash commands to your OpenCode configuration directory:
+Run the included installation script to copy the skills, support files, and slash commands to your OpenCode configuration directory:
 
 ```bash
 # Mac / Linux
@@ -25,7 +27,7 @@ chmod +x install.sh
 Once installed, restart your OpenCode session. You can now trigger the review panel using the registered slash command:
 
 ```
-> /roundtable:agent-review-panel ./src
+> /roundtable ./src
 ```
 
 Or trigger it naturally:
