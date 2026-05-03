@@ -1,10 +1,10 @@
 ---
 name: plan-review-integrator
-version: 2.0.1
+version: 2.1.0
 author: wan-huiyan
 description: >
   Integrate structured review panel findings into an implementation plan document.
-  Takes output from agent-review-panel (or any structured review with severity-rated
+  Takes output from overseer (or any structured review with severity-rated
   findings) and cross-references each finding against the plan, classifies it into
   an action category, applies concrete edits, and produces a traceability summary.
   Trigger when the user says "update the plan with review findings", "incorporate
@@ -14,9 +14,9 @@ description: >
   plan based on the review", "take the review panel output and update my plan",
   "reconcile the review feedback with the current plan", or invokes
   /plan-review-integrator. Does NOT trigger for running a review panel (use
-  agent-review-panel), writing a plan from scratch, general code review, summarizing
+  overseer), writing a plan from scratch, general code review, summarizing
   review findings without applying them, or brainstorming implementation approaches.
-consumes_from: agent-review-panel
+consumes_from: overseer
 hands_off_to: implementation-executor
 output_contract: >
   Returns: (1) updated plan document with edits applied, (2) traceability summary
@@ -26,7 +26,7 @@ output_contract: >
   are applied.
 ---
 
-# Plan-Review Integrator v2.0
+# Plan-Review Integrator v2.1
 
 Consumes structured review panel output and integrates findings into an
 implementation plan document -- turning review feedback into concrete plan updates
@@ -36,6 +36,10 @@ with full traceability.
 > wrong *fixes* when they lack domain context. Always validate recommendations
 > against domain-specific constraints before applying them.
 
+v2.1 adds lightweight governance gates -- recommendation states, veto semantics,
+and bounded escalation voting -- for disputed high-severity findings while keeping
+the default workflow single-agent and low overhead.
+
 ---
 
 ## Quick Reference
@@ -43,7 +47,7 @@ with full traceability.
 | Stage | Phase | Action | Output |
 |-------|-------|--------|--------|
 | **Gather** | 1. Gather Inputs | Collect review reports + plan + domain context | Input set |
-| | 2. VoltAgent Detection | Detect specialists, suggest install if beneficial | Available specialist map |
+| | 2. Agent Detection | Detect specialists, suggest install if beneficial | Available specialist map |
 | **Analyze** | 3. Extract Findings | Parse findings with severity, source, citations | Structured finding list |
 | | 4. Cross-Reference | Match each finding against plan content | Category per finding |
 | | 5. Actionability Filter | Score actionability, drop low-signal findings | Filtered finding list |
@@ -72,68 +76,96 @@ Skip Phases 3-8 and go directly to Phase 10 with a summary confirming the clean 
 
 ---
 
-## VoltAgent Specialist Verification (v1.3)
+## Phase 1.5: Optional Focus Context
 
-VoltAgent specialist agents (127+ across 10 families) have built-in domain
-expertise via their system prompts. Unlike agent-review-panel (which replaces
-reviewer personas with VoltAgent agents), this skill uses VoltAgent as an
+Before scoring findings, ask whether the user wants the integration weighted toward
+specific concerns: security, compliance, performance, delivery timeline, migration
+risk, cost, or operational reliability. This is optional; if the user gives no
+focus, continue with the standard weighting.
+
+Use focus context only as a tie-breaker between otherwise comparable dispositions.
+It must never override verified critical evidence, downgrade a security/data-integrity
+must-fix, or justify applying a disputed critical finding without escalation.
+
+---
+
+## Agent Specialist Verification (v1.3)
+
+Agent specialist agents (127+ across 10 families) have built-in domain
+expertise via their system prompts. Unlike overseer (which replaces
+reviewer personas with Agent agents), this skill uses Agent as an
 **optional second-opinion verifier** for high-severity edits. The skill remains
-single-agent; specialists are consulted, not orchestrated.
-Full catalog: github.com/VoltAgent/awesome-claude-code-subagents
+single-agent by default; specialists are consulted, as bounded parallel verifiers
+when independent P0/P1 verification tasks qualify.
+Full catalog: github.com/Agent/awesome-claude-code-subagents
 
 **Step 1: Detection.** During Phase 1 (Gather Inputs), scan the system-reminder
-agent list for any `voltagent-*` prefixed agents. Note which families are
-installed (e.g., `voltagent-data-ai`, `voltagent-infra`, `voltagent-lang`).
-If none found, skip all VoltAgent steps silently -- everything works without them.
+agent list for any `agent-*` prefixed agents. Note which families are
+installed (e.g., `agent-data-ai`, `agent-infra`, `agent-lang`).
+If none found, skip all Agent steps silently -- everything works without them.
 
-**Step 2: Content-signal routing.** Match plan content signals to specialists:
+**Step 2: Specialist Registry / content-signal routing.** Match plan content
+signals to specialists:
 
-| Content Signal | VoltAgent Specialist | Verification Use |
+| Content Signal | Agent Specialist | Verification Use |
 |---|---|---|
-| SQL / database queries | `voltagent-data-ai:database-optimizer` | Verify query correctness in must-fix edits |
-| Data pipelines / ETL | `voltagent-data-ai:data-engineer` | Verify pipeline logic changes |
-| ML / model training | `voltagent-data-ai:ml-engineer` | Verify model config / hyperparameter fixes |
-| Python code | `voltagent-lang:python-pro` | Verify code snippet corrections |
-| TypeScript code | `voltagent-lang:typescript-pro` | Verify TS code corrections |
-| Go code | `voltagent-lang:golang-pro` | Verify Go code corrections |
-| Rust code | `voltagent-lang:rust-engineer` | Verify Rust code corrections |
-| Java / Spring | `voltagent-lang:java-architect` | Verify Java code corrections |
-| Terraform / IaC | `voltagent-infra:terraform-engineer` | Verify infra changes in plan edits |
-| Kubernetes / k8s | `voltagent-infra:kubernetes-specialist` | Verify k8s manifest changes |
-| Docker / containers | `voltagent-infra:docker-expert` | Verify container config changes |
-| CI/CD / pipelines | `voltagent-infra:deployment-engineer` | Verify deployment procedure edits |
-| Security / auth | `voltagent-qa-sec:security-auditor` | Verify security fix correctness |
-| Performance / scaling | `voltagent-qa-sec:performance-engineer` | Verify performance-related changes |
-| API design / REST | `voltagent-core-dev:api-designer` | Verify API contract changes |
-| GraphQL | `voltagent-core-dev:graphql-architect` | Verify schema changes |
-| React / frontend | `voltagent-lang:react-specialist` | Verify frontend code corrections |
-| Compliance / GDPR | `voltagent-qa-sec:compliance-auditor` | Verify regulatory compliance of edits |
+| SQL / database queries | `agent-data-ai:database-optimizer` | Verify query correctness in must-fix edits |
+| Data pipelines / ETL | `agent-data-ai:data-engineer` | Verify pipeline logic changes |
+| ML / model training | `agent-data-ai:ml-engineer` | Verify model config / hyperparameter fixes |
+| Python code | `agent-lang:python-pro` | Verify code snippet corrections |
+| TypeScript code | `agent-lang:typescript-pro` | Verify TS code corrections |
+| Go code | `agent-lang:golang-pro` | Verify Go code corrections |
+| Rust code | `agent-lang:rust-engineer` | Verify Rust code corrections |
+| Java / Spring | `agent-lang:java-architect` | Verify Java code corrections |
+| Terraform / IaC | `agent-infra:terraform-engineer` | Verify infra changes in plan edits |
+| Kubernetes / k8s | `agent-infra:kubernetes-specialist` | Verify k8s manifest changes |
+| Docker / containers | `agent-infra:docker-expert` | Verify container config changes |
+| CI/CD / pipelines | `agent-infra:deployment-engineer` | Verify deployment procedure edits |
+| Security / auth | `agent-qa-sec:security-auditor` | Verify security fix correctness |
+| Performance / scaling | `agent-qa-sec:performance-engineer` | Verify performance-related changes |
+| API design / REST | `agent-core-dev:api-designer` | Verify API contract changes |
+| GraphQL | `agent-core-dev:graphql-architect` | Verify schema changes |
+| React / frontend | `agent-lang:react-specialist` | Verify frontend code corrections |
+| Compliance / GDPR | `agent-qa-sec:compliance-auditor` | Verify regulatory compliance of edits |
 
 **Step 3: Suggest installation when beneficial.** If content signals match
-VoltAgent specialists but the relevant agent families are not available,
+Agent specialists but the relevant agent families are not available,
 suggest installation to the user:
 
-> "This integration would benefit from VoltAgent specialist agents for
+> "This integration would benefit from Agent specialist agents for
 > domain-specific edit verification. You can install the relevant families with:
 >
 > **Quick install (CLI):**
-> `claude plugin install voltagent-qa-sec`  -- security, code review, testing
-> `claude plugin install voltagent-data-ai` -- data science, ML, databases
-> `claude plugin install voltagent-infra`   -- DevOps, cloud, Terraform
-> `claude plugin install voltagent-lang`    -- language specialists (TS, Python, Go, Rust)
+> `claude plugin install agent-qa-sec`  -- security, code review, testing
+> `claude plugin install agent-data-ai` -- data science, ML, databases
+> `claude plugin install agent-infra`   -- DevOps, cloud, Terraform
+> `claude plugin install agent-lang`    -- language specialists (TS, Python, Go, Rust)
 >
 > **Or browse via marketplace:**
-> `/plugin marketplace add VoltAgent/awesome-claude-code-subagents`
-> then `/plugin install <name>@voltagent-subagents`
+> `/plugin marketplace add Agent/awesome-claude-code-subagents`
+> then `/plugin install <name>@agent-subagents`
 >
 > Continue without them? They're optional -- all verification works without
-> VoltAgent specialists."
+> Agent specialists."
 
 Only suggest installation **once per session**. List only the families relevant
 to the detected content signals, not all 10. If the user declines or the agents
 are not available, proceed silently with the standard single-agent workflow.
 
-**Step 4: When to spawn specialists.** VoltAgent spawns are gated by priority,
+### Parallel Specialist Orchestration Contract
+
+When specialist verification is triggered, the integrator MUST batch independent
+checks instead of spawning one specialist at a time:
+
+1. **Collect eligible findings first.** Finish Phase 5.5 context coverage and Phase 6 epistemic-weighted classification before launching specialists.
+2. **Map and deduplicate.** Map P0/P1 eligible findings to the Specialist Registry. Group overlapping findings by domain, plan section, and prescribed fix so one specialist can verify a coherent cluster.
+3. **Launch bounded parallel batches.** Launch up to the remaining spawn budget in one parallel batch, with a maximum of 3 specialist spawns per integration run unless explicitly configured otherwise.
+4. **Keep prompts scoped.** Each specialist receives only its finding cluster, the relevant plan excerpt, gathered domain context, and the focused verification question. Specialists do not receive unrelated findings.
+5. **Synthesize before editing.** Wait for the full specialist batch to return or fail, record advisory outcomes, then apply plan edits sequentially so rollback and coherence checks observe the current document state.
+6. **Prioritize overflow deterministically.** If more than 3 clusters qualify, prioritize P0 before P1, Corrections before Gaps, and security/data-integrity/destructive-operation domains before other domains.
+7. **Fallback without blocking.** If a specialist spawn fails or times out, log it as unavailable and continue with standard single-agent validation unless the finding is otherwise blocked by governance.
+
+**Step 4: When to spawn specialists.** Agent spawns are gated by priority,
 phase, and a hard cap:
 
 1. **Priority gate:** ONLY for P0 or P1 effective priority findings (from
@@ -157,7 +189,7 @@ phase, and a hard cap:
    - Apply the specialist's suggested alternative if it passes coherence check
    - Or flag for human review if disagreement cannot be resolved
 6. **Fallback:** If the specialist spawn fails or times out, proceed without it.
-   Log `"voltagent_verification": "unavailable"` in `integration_log.jsonl`.
+   Log `"agent_verification": "unavailable"` in `integration_log.jsonl`.
 
 Note: findings downgraded by the actionability filter (Phase 5, where
 groundedness < 0.3 caps severity at MEDIUM) will not reach P0/P1 threshold
@@ -208,9 +240,9 @@ Document cases where the finding is valid but the prescribed fix is wrong.
 Override the reviewer's prescribed fix when domain validation shows it is incorrect,
 and supply the correct fix. Record the override in the key decisions section of the summary.
 
-**VoltAgent verification (v1.3):** When a P0/P1 finding's cross-reference
+**Agent verification (v1.3):** When a P0/P1 finding's cross-reference
 judgment is ambiguous (especially "Already addressed" vs "Gap"), and a relevant
-VoltAgent specialist is available, spawn the specialist to validate the judgment.
+Agent specialist is available, spawn the specialist to validate the judgment.
 The specialist sees the finding, the plan section claimed to address it, and
 asks: "Does this plan section genuinely address this concern, or is there a gap?"
 This catches false "Already addressed" classifications that domain context alone
@@ -237,13 +269,34 @@ Score each finding on two dimensions before classification:
 - **Pass through** findings with actionability >= 0.5 (specific issue, concrete fix path)
 - Groundedness < 0.3 caps maximum severity at MEDIUM regardless of original rating
 
-**Epistemic label weighting** (from upstream agent-review-panel):
+**Epistemic label weighting** (from upstream overseer):
 - `[VERIFIED]` or `[CMD_CONFIRMED]`: +0.2 actionability bonus
 - `[CONSENSUS]`: no adjustment
 - `[SINGLE-SOURCE]`: -0.1 actionability penalty
 - `[UNVERIFIED]` or `[DISPUTED]`: -0.2 actionability penalty
 
 Record the filter decision (pass/flag/drop) and scores for each finding in the traceability table.
+
+---
+
+## Phase 5.5: Context Coverage Gate
+
+Track whether each finding was evaluated with full or partial context. Set
+`context_coverage` to `full` when the review report, plan section, and required
+domain context were all available; otherwise set it to `partial`.
+
+If any material context is missing, truncated, or unavailable, emit this warning
+before classification:
+
+> **[WARNING] Context Partial**: Some review, plan, or domain context could not be
+> inspected completely. Findings tied to omitted context are confidence-limited and
+> require caveats or human review before finalizing.
+
+For findings with `context_coverage: partial`:
+- Downgrade confidence by one tier.
+- Cap automatic disposition at `Apply with caveats`.
+- Do not auto-apply disputed P0/P1 findings; route them through Phase 6.5 or mark
+  `Human review required`.
 
 ---
 
@@ -290,6 +343,47 @@ Raised, debated, and resolved during review. No plan changes needed.
 - Panels disagree on severity: use higher severity, note disagreement
 - Valid finding + wrong fix: classify on finding severity, supply correct fix
 
+### Governance Matrix (v2.1)
+
+Use these gates after epistemic-weighted classification and before applying edits:
+
+| Gate | Trigger | Required disposition |
+|---|---|---|
+| Security/Data Integrity Veto | P0/P1 verified or consensus finding affects security, privacy, data integrity, or destructive operations | Cannot be silently deferred; apply, block, or require human review with rationale |
+| Scope Expansion Veto | Recommended fix expands scope, timeline, architecture, or user-facing behavior beyond the reviewed plan | Requires explicit user confirmation before applying |
+| Disputed Critical Rule | CRITICAL finding is `[SINGLE-SOURCE]`, `[DISPUTED]`, or has partial context | Do not auto-apply; escalate in Phase 6.5 or mark `Human review required` |
+| Wrong-Fix Override | Finding is valid but prescribed fix conflicts with domain context | Apply corrected fix only if coherence passes; otherwise require human review |
+
+Record the triggered gate in the traceability table. If no gate applies, record
+`governance_gate: none`.
+
+---
+
+## Phase 6.5: Dispute Escalation
+
+Escalate only contested P0/P1 findings. Keep this bounded so the skill remains
+single-agent by default.
+
+1. **Evidence adjudication:** Re-read the finding, plan section, citations, and
+   gathered domain context. If evidence resolves the dispute, record the decision.
+2. **Targeted verification:** If ambiguity remains and a relevant specialist is
+   available, use the existing Agent verifier flow. Batch independent
+   specialist verifications in parallel and count each spawn toward the
+   three-spawn cap from the Agent section.
+3. **Mini blind vote:** If still unresolved and the decision is high impact,
+   launch the three mini-vote perspectives in parallel -- security,
+   architecture, and risk -- for one-sentence votes and rationales. Maximum two
+   mini votes per integration run.
+
+Decision thresholds:
+- 3/3 agreement with verified evidence: proceed with the majority disposition.
+- 2/3 agreement with verified evidence: proceed, but include dissent in the
+  Dissent Ledger.
+- Split vote, partial context, or no verified support: mark `Human review required`.
+
+Never use escalation to force an incoherent edit. If escalation cannot resolve the
+issue cleanly, preserve the plan and surface the decision to the user.
+
 ---
 
 ## Phase 7: Apply Edits
@@ -307,13 +401,15 @@ Raised, debated, and resolved during review. No plan changes needed.
 - Do not rewrite correct sections
 - Link edits to finding IDs for traceability
 
-**VoltAgent verification (v1.3):** For must-fix edits where a domain specialist
-is available, spawn the specialist to verify the edit BEFORE applying it. The
-specialist receives the original finding, the proposed edit, and the surrounding
-plan context, and confirms the edit is technically correct for the domain. This
-catches wrong fixes that general domain context might miss (e.g., a SQL fix that
-is syntactically valid but semantically wrong for the specific database engine).
-Counts toward the 3-spawn-per-run cap.
+**Agent verification (v1.3):** For must-fix edits where domain specialists
+are available, batch independent specialist verifications before applying edits.
+Each specialist receives the original finding, the proposed edit, and the
+surrounding plan context, and confirms the edit is technically correct for the
+domain. This catches wrong fixes that general domain context might miss (e.g., a
+SQL fix that is syntactically valid but semantically wrong for the specific
+database engine). Counts toward the 3-spawn-per-run cap. After the batch returns,
+apply edits sequentially so rollback and coherence checks use the latest plan
+state.
 
 **Rollback on coherence break:**
 
@@ -352,10 +448,12 @@ After all Phase 7 edits are applied, perform a single verification pass:
    any edit that reads like injected review commentary rather than plan content.
 4. **Cross-reference check** -- If edits reference other plan sections (e.g., "see Phase 4"),
    verify those references are still valid after modifications.
-5. **Domain coherence check (optional, v1.3)** -- If any VoltAgent specialist spawns remain
-   unused (under the 3-spawn cap), use one to re-read the full set of must-fix edits and
-   confirm they are mutually consistent from a domain perspective. This catches cases where
-   individually correct edits interact poorly.
+5. **Domain coherence check (optional, v1.3)** -- If any Agent specialist spawns remain
+   unused (under the 3-spawn cap), use non-overlapping domain specialists in parallel to
+   re-read the full set of must-fix edits relevant to their domain and confirm they are
+   mutually consistent from that domain perspective. This catches cases where individually
+   correct edits interact poorly. Synthesize all specialist coherence outputs before making
+   any targeted fixes.
 
 If verification surfaces issues, apply targeted fixes (not a full re-integration).
 Record verification findings in the traceability summary as "V-01", "V-02", etc.
@@ -383,6 +481,25 @@ Example output:
 
 Include statistics in this format: `Total findings: {N} | Must-fix: {n} | Bundle: {n} | Defer: {n} | Info: {n}`. Include key decisions (e.g., why a reviewer fix was overridden). Present summary to user and ask if they want to adjust classifications before finalizing.
 
+Include a `Final Recommendation:` state:
+
+| Final Recommendation | Meaning |
+|---|---|
+| `Auto-applied` | All actionable findings were applied or classified without caveats, disputes, or partial-context limits |
+| `Applied with caveats` | Edits were applied, but at least one caveat, context limitation, or non-blocking dissent remains |
+| `Human review required` | At least one P0/P1, disputed, scope-expanding, or partial-context finding requires user decision |
+| `Blocked` | A verified high-risk finding cannot be safely integrated without changing the plan first |
+
+Add a **Dissent Ledger** section. If there is no dissent, write `Dissent Ledger: none`.
+For each disputed item, include: finding ID, positions, evidence summary, escalation
+result, and required decision owner.
+
+Add an **Action Items** section with prioritized checklist items:
+
+| Priority | Owner | Action | Source finding |
+|---|---|---|---|
+| P0/P1/P2 | user / implementer / reviewer | Concrete next step | Finding ID |
+
 ---
 
 ## Phase 11: Persistent Integration Log
@@ -407,7 +524,12 @@ Append one JSON line per finding to `integration_log.jsonl` in the project root:
   "disposition": "applied",
   "rollback": false,
   "verification_passed": true,
-  "voltagent_verification": "confirmed",
+  "agent_verification": "confirmed",
+  "final_recommendation": "Applied with caveats",
+  "governance_gate_triggered": true,
+  "escalation_used": "targeted",
+  "dissent": false,
+  "context_coverage": "full",
   "notes": "Added temporal guard to step 3 query"
 }
 ```
@@ -425,10 +547,10 @@ matching historically-applied patterns get a +0.1 bonus.
 
 ## Upstream Schema Contract
 
-> This section defines the expected input format from `agent-review-panel` to prevent
+> This section defines the expected input format from `overseer` to prevent
 > silent misparse when the upstream skill evolves. Version-pinned for compatibility.
 
-**Compatible with:** `agent-review-panel` v2.0+ (v2.9+ for VoltAgent-enriched findings, v2.16.1+ ships in the same `agent-review-panel` marketplace bundle as this plugin — install both with `/plugin install roundtable@agent-review-panel` + `/plugin install plan-review-integrator@agent-review-panel`)
+**Compatible with:** `overseer` v2.0+ (v2.9+ for Agent-enriched findings, v2.16.1+ ships in the same `overseer` marketplace bundle as this plugin — install both with `/plugin install roundtable@overseer` + `/plugin install plan-review-integrator@overseer`)
 
 **Required fields per finding:**
 - Severity tier: `P0` / `P1` / `P2` (maps to CRITICAL / HIGH / MEDIUM-LOW)
@@ -458,11 +580,11 @@ This skill expects structured review output as input (requires a file path or in
 Do not use for running review panels or writing plans from scratch.
 If integration fails, gracefully degrade by presenting unmodified findings for manual triage.
 After integration, then use the implementation executor to begin building.
-This plugin is designed to consume output from `agent-review-panel` and ships alongside it in the same `plugin` marketplace bundle (see [`wan-huiyan/agent-review-panel`](https://github.com/wan-huiyan/agent-review-panel)). It works with any structured review output matching the schema above; `agent-review-panel` is the canonical producer. Compatible with review v1.0 output format and above.
+This plugin is designed to consume output from `overseer` and ships alongside it in the same `plugin` marketplace bundle (see [`wan-huiyan/overseer`](https://github.com/wan-huiyan/overseer)). It works with any structured review output matching the schema above; `overseer` is the canonical producer. Compatible with review v1.0 output format and above.
 
 | Field | Value |
 |-------|-------|
-| Consumes from | `agent-review-panel` (or any structured review with severity-rated findings) |
+| Consumes from | `overseer` (or any structured review with severity-rated findings) |
 | Hands off to | Implementation executor; updated plan feeds into build phases |
 | Output contract | Updated plan + traceability summary + optional ADRs/runbooks |
 | Namespace | All edits scoped to provided plan document; no global state modification |
@@ -481,7 +603,9 @@ This plugin is designed to consume output from `agent-review-panel` and ships al
 7. **Severity-only triage** -- a `[SINGLE-SOURCE]` CRITICAL is weaker than a `[VERIFIED]` HIGH; always use epistemic-weighted severity
 8. **Forcing incoherent edits** -- if an edit breaks plan coherence, rollback; a flagged finding beats a corrupted plan
 9. **Ignoring integration history** -- check `integration_log.jsonl` for patterns before classifying; don't repeat deferred decisions without re-evaluation
-10. **Over-spawning specialists** -- VoltAgent is a verification tool here, not an orchestrator; cap at 3 spawns per run and only for P0/P1 findings
+10. **Over-spawning specialists** -- Agent is a bounded verification tool here; cap at 3 spawns per run and only for P0/P1 findings
+11. **Serializing independent specialist checks** -- do not launch one specialist at a time when P0/P1 verification clusters are independent; batch them as bounded parallel verifiers, then synthesize before editing
+12. **Parallelizing dependent edits** -- specialist verification can run in parallel, but plan edits and rollback/coherence checks remain sequential because they depend on current document state
 
 ---
 
@@ -501,4 +625,4 @@ Design decisions are informed by the following research:
 | Multi-agent debate protocols | Voting vs Consensus (Kaesberg et al.) | ACL 2025 Findings, arXiv:2502.19130 |
 | Anti-sycophancy mechanisms | CONSENSAGENT | ACL 2025 Findings |
 | Feedback-to-section mapping | Friction (Zhang et al.) | CHI 2025 |
-| VoltAgent specialist routing | awesome-claude-code-subagents (VoltAgent) | github.com/VoltAgent/awesome-claude-code-subagents |
+| Agent specialist routing | awesome-claude-code-subagents (Agent) | github.com/Agent/awesome-claude-code-subagents |
