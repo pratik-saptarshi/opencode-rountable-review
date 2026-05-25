@@ -1,10 +1,10 @@
 #!/bin/bash
 # ⚔️ opencode-roundtable-review — Push & Create Pull Request Utility
-# This script pushes the quest/excalibur-skill branch and creates a pull request.
+# This script pushes the quest/excalibur-node branch and creates a pull request.
 
 set -e
 
-BRANCH="quest/excalibur-skill"
+BRANCH="quest/excalibur-node"
 REPO="pratik-saptarshi/opencode-rountable-review"
 
 echo "⚔️ Pushing feature branch to Camelot..."
@@ -14,14 +14,14 @@ echo "🛡️ Creating pull request on GitHub..."
 gh pr create --repo "$REPO" \
     --head "$BRANCH" \
     --base "main" \
-    --title "feat(excalibur-quest): integrate arthurian quest-based remediation skill" \
+    --title "feat(excalibur-quest): migrate to universal cross-platform Node.js implementation" \
     --body "⚔️ **Excalibur Quest Remediation & Skill Integration Complete!**
 
-This PR integrates the \`excalibur-quest\` skill, modeled after King Arthur and the Knights of the Roundtable, providing a robust bead-based remediation quest planning and local-first fallback mechanism.
+This PR completes the migration of the \`excalibur-quest\` skill to a pure Node.js/JavaScript implementation, providing true cross-platform compatibility across Windows, macOS, and Linux without Python.
 
 ### 🛡️ Key Accomplishments
 1. **Arthurian Core Skill:** Created \`SKILL.md\` under [SKILL.md](./skills/excalibur-quest/SKILL.md).
-2. **Quest Helper CLI:** Built [quest_helper.py](./skills/excalibur-quest/scripts/quest_helper.py) utilizing standard Python libraries.
+2. **Quest Helper Node CLI:** Built [quest_helper.js](./skills/excalibur-quest/scripts/quest_helper.js) utilizing zero-dependency standard Node modules.
 3. **Roundtable Concurrency Seats:** Enforced a maximum of 3 concurrent instances globally via a file-locked execution queue.
 4. **Resilient Local DB Engine:** Integrated transparent Dolt SQL primary engine with local JSON fallbacks for sandbox environments.
 5. **Cleaned up Absolute Paths & Local Identifiers:** Sanitized all absolute paths, emails, and hostnames before public view.
