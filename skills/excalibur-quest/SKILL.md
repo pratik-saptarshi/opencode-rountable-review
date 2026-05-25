@@ -19,7 +19,7 @@ bead-based quest planning methodology and robust local-first fallbacks.
 ## Quick Start
 To remediate issue #123:
 ```bash
-uv run python3 -m excalibur-quest.scripts.quest_helper init --issue-id 123 --reviews-path reviews.json
+node skills/excalibur-quest/scripts/quest_helper.js init --issue-id 123 --reviews-path reviews.json
 ```
 
 ## Utility Scripts
@@ -29,19 +29,19 @@ the following subcommands:
 ### `init`
 Initializes a remediation quest and creates a local bead database/git branch.
 ```bash
-uv run python3 -m excalibur-quest.scripts.quest_helper init --issue-id 123 --reviews-path reviews.json --output quest_status.json
+node skills/excalibur-quest/scripts/quest_helper.js init --issue-id 123 --reviews-path reviews.json --output quest_status.json
 ```
 
 ### `sync`
 Synchronizes the status of the local beads and edits to origin GitHub issues.
 ```bash
-uv run python3 -m excalibur-quest.scripts.quest_helper sync --issue-id 123 --repo-owner <owner> --repo-name <repo> --output sync_status.json
+node skills/excalibur-quest/scripts/quest_helper.js sync --issue-id 123 --repo-owner <owner> --repo-name <repo> --output sync_status.json
 ```
 
 ### `close`
 Closes the local beads and registers the successful completion of the quest.
 ```bash
-uv run python3 -m excalibur-quest.scripts.quest_helper close --issue-id 123 --output final_status.json
+node skills/excalibur-quest/scripts/quest_helper.js close --issue-id 123 --output final_status.json
 ```
 
 ## Rate Limiting
