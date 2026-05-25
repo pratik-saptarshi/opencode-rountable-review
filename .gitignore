@@ -11,3 +11,8 @@ integration_log.jsonl
 # Local/editor noise
 .DS_Store
 Thumbs.db
+
+# excalibur-quest local DB and locks
+.excalibur_quest/
+.excalibur_locks/
+
