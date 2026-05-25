@@ -13,7 +13,7 @@ git push origin "$BRANCH" --force-with-lease
 echo "🛡️ Creating pull request on GitHub..."
 gh pr create --repo "$REPO" \
     --head "$BRANCH" \
-    --base "master" \
+    --base "main" \
     --title "feat(excalibur-quest): integrate arthurian quest-based remediation skill" \
     --body "⚔️ **Excalibur Quest Remediation & Skill Integration Complete!**
 
