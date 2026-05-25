@@ -8,7 +8,7 @@ Designing the `excalibur-quest` skill to orchestrate multi-agent review remediat
 
 ## 2. Directory Structure
 ```
-/Users/neo/.gemini/config/plugins/science/skills/excalibur-quest/
+skills/excalibur-quest/
 ├── SKILL.md
 ├── scripts/
 │   └── quest_helper.py

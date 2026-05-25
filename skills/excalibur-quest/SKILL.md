@@ -35,7 +35,7 @@ uv run python3 -m excalibur-quest.scripts.quest_helper init --issue-id 123 --rev
 ### `sync`
 Synchronizes the status of the local beads and edits to origin GitHub issues.
 ```bash
-uv run python3 -m excalibur-quest.scripts.quest_helper sync --issue-id 123 --repo-owner Cognilogical --repo-name NeuroStrata --output sync_status.json
+uv run python3 -m excalibur-quest.scripts.quest_helper sync --issue-id 123 --repo-owner <owner> --repo-name <repo> --output sync_status.json
 ```
 
 ### `close`
