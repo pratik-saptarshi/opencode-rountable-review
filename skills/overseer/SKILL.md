@@ -3,34 +3,13 @@ name: overseer
 version: 3.2.0
 author: wan-huiyan
 description: >
-  Orchestrate a multi-agent adversarial review panel where several Claude Code
-  subagents with different perspectives independently review a piece of work,
-  debate with each other, reach (or fail to reach) consensus, then a supreme
-  judge renders the final verdict. Use this skill whenever the user asks for a
-  "review panel", "multi-agent review", "adversarial review", "have agents
-  debate this", "review with multiple perspectives", "panel review", "get
-  different opinions on this code/plan/doc", or invokes /overseer.
-  Also trigger when a user says things like "I want thorough feedback from
-  different angles", "stress-test this design", "red team this", "get a second
-  (third, fourth) opinion", "fresh eyes on this", "multiple reviewers",
-  "devil's advocate perspective", "every angle covered", "I want agents to
-  argue pros and cons", "independently evaluate", "critical look from security
-  and performance angles", "high-stakes — cover every angle", or "debate the
-  pros and cons". This skill is specifically about launching multiple reviewer
-  agents with distinct personas who discuss and debate — NOT for single-reviewer
-  code review, quick sanity checks, bug fixes, deployment tasks, addressing
-  existing PR comments, skill improvement, peer review, code explanation, or
-  writing tests. Supports "deep research mode" when user says "deep review",
-  "thorough review", "research review", or passes "deep" to
-  /overseer — adds web research for domain best practices before
-  launching reviewers. Supports "multi-run union mode" when user says
-  "multi-run review", "run N times and merge", "run twice", "run 3 times",
-  or "maximum coverage review" — repeats the panel with rotated persona sets
-  and merges results with stability scoring. Supports "data flow trace
-  tiers" (Standard/Thorough/Exhaustive) when user says "thorough review",
-  "exhaustive review", "trace everything", or "catch all bugs" — dedicates
-  a pre-review phase to tracing data through critical paths and flagging
-  composition/seam bugs.
+  Run a multi-agent adversarial review panel for code, plans, or docs. Use
+  when the user wants a review panel, multi-agent review, adversarial review,
+  multiple perspectives, deep review, red-team style feedback, or explicit
+  debate between reviewers, including /overseer. This skill launches distinct
+  reviewer personas, supports optional deep research, multi-run merge mode,
+  and data-flow tracing, and is not for simple single-reviewer feedback,
+  bug-fixing, deployment, or addressing existing PR comments.
 ---
 
 # Overseer v3.2.0
