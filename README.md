@@ -8,6 +8,7 @@ Licensed under MIT.
 
 1. **overseer**: Orchestrates a multi-agent adversarial review panel (4–6 reviewers + judge) to evaluate code, plans, or documentation.
 2. **plan-review-integrator**: A companion skill to apply review findings back into implementation plans with full traceability.
+3. **overnight-parallel-lanes**: Sets up an unattended multi-lane coding run — one isolated worktree per lane, parallel workers, independent review per lane, cost-tiered routing, and explicit stop conditions before the merge batch.
 
 ## Quick Start Installation
 
