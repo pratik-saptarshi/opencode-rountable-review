@@ -77,7 +77,7 @@ Stage 7: Merge      → only with explicit per-PR authorization; otherwise stop 
 
 ### Stage 5 — Integrate
 
-- Follow `finishing-a-development-branch` for the push/PR decision, per the Authorization rule above (ask once, name the branch).
+- Follow `finishing-a-development-branch` for the push/PR decision only — use its push and open-PR options, never its merge option. Selecting merge requires a separate explicit authorization naming the PR, per the Authorization rule above (ask once, name the branch).
 - **Gate:** branch pushed and PR opened with user authorization. If the user declines, the pipeline ends here: report the local branch state and stop — do not proceed to Stage 6.
 
 ### Stage 6 — Gate
