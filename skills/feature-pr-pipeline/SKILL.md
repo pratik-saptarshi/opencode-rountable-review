@@ -36,7 +36,7 @@ If a companion is missing, install it or substitute its documented procedure bef
 ## The Pipeline
 
 ```
-Stage 0: Setup      → worktree + branch from origin/main, verify base
+Stage 0: Setup      → worktree + branch from the repo's default branch, verify base
 Stage 1: Plan       → writing-plans (TDD checks per task)
 Stage 2: Implement  → subagent-driven-development + test-driven-development
 Stage 3: Review     → fresh independent whole-branch reviewer
@@ -48,7 +48,7 @@ Stage 7: Merge      → only with explicit per-PR authorization; otherwise stop 
 
 ### Stage 0 — Setup
 
-- Fetch origin; create an isolated worktree + feature branch **from `origin/main`** (never a diverged local `main`).
+- Fetch origin; create an isolated worktree + feature branch **from the repository's default branch** (resolve it — e.g. `git symbolic-ref refs/remotes/origin/HEAD` — never assume `origin/main`, and never branch from a diverged local branch).
 - Verify the base: the commit(s) being built on must be ancestors of the new branch.
 - Save the plan under the goal's `files/plans/` (or the repo's `docs/superpowers/plans/` when the tree is clean) — never in a dirty working tree.
 - **Gate:** isolated worktree + branch exist on the verified base; plan location chosen; companion skills confirmed available (see Prerequisites).
