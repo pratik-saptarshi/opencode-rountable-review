@@ -22,6 +22,17 @@ Do NOT use for: one-line fixes (do them directly), exploratory spikes (no PR pla
 
 **Authorization (read once):** pushing a branch, opening a PR, and merging each require the user's explicit per-action authorization naming the exact branch/PR. Never bundle merge permission into a general "proceed". Branch deletion, force-push, and history rewrite need separate explicit per-action approval naming exact targets.
 
+## Prerequisites
+
+This skill orchestrates five companion workflow skills. At Stage 0, confirm each is installed (or that you know its procedure):
+- `writing-plans` — implementation plans with task-level tests
+- `subagent-driven-development` — fresh implementer subagent + reviewer per task
+- `test-driven-development` — RED → GREEN → refactor
+- `scrubbing-public-tree` — pre-push hygiene pass
+- `finishing-a-development-branch` — push/PR integration decision
+
+If a companion is missing, install it or substitute its documented procedure before proceeding — the stages below reference these skills as written.
+
 ## The Pipeline
 
 ```
@@ -40,7 +51,7 @@ Stage 7: Merge      → only with explicit per-PR authorization; otherwise stop 
 - Fetch origin; create an isolated worktree + feature branch **from `origin/main`** (never a diverged local `main`).
 - Verify the base: the commit(s) being built on must be ancestors of the new branch.
 - Save the plan under the goal's `files/plans/` (or the repo's `docs/superpowers/plans/` when the tree is clean) — never in a dirty working tree.
-- **Gate:** isolated worktree + branch exist on the verified base; plan location chosen.
+- **Gate:** isolated worktree + branch exist on the verified base; plan location chosen; companion skills confirmed available (see Prerequisites).
 
 ### Stage 1 — Plan
 
@@ -67,11 +78,11 @@ Stage 7: Merge      → only with explicit per-PR authorization; otherwise stop 
 ### Stage 5 — Integrate
 
 - Follow `finishing-a-development-branch` for the push/PR decision, per the Authorization rule above (ask once, name the branch).
-- **Gate:** branch pushed and PR opened with user authorization, or explicit user decline.
+- **Gate:** branch pushed and PR opened with user authorization. If the user declines, the pipeline ends here: report the local branch state and stop — do not proceed to Stage 6.
 
 ### Stage 6 — Gate
 
-- Monitor CI to completion. Read every review comment and inline thread. Fix real findings (push updates); adjudicate non-findings explicitly. Repeat until CI is green and all threads resolved.
+- Monitor CI to completion. Read every review comment and inline thread. Fix real findings; adjudicate non-findings explicitly. Route every fix back through the applicable gates (independent review for logic/prose changes, hygiene for any new content) before pushing the update. Repeat until CI is green and all threads resolved.
 - **Gate:** CI green; every review comment and thread resolved.
 
 ### Stage 7 — Merge
