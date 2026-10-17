@@ -36,6 +36,7 @@ mkdir -p "$TARGET_DIR/skills/overseer"
 mkdir -p "$TARGET_DIR/skills/overseer/references"
 mkdir -p "$TARGET_DIR/skills/plan-review-integrator"
 mkdir -p "$TARGET_DIR/skills/overnight-parallel-lanes"
+mkdir -p "$TARGET_DIR/skills/feature-pr-pipeline"
 mkdir -p "$TARGET_DIR/commands"
 
 echo "Installing Overseer to $TARGET_DIR (Mode: $MODE)..."
@@ -45,6 +46,7 @@ if [ "$MODE" = "symlink" ]; then
     ln -sfn "$REPO_ROOT/skills/overseer/references" "$TARGET_DIR/skills/overseer/references"
     ln -sfn "$REPO_ROOT/skills/plan-review-integrator/SKILL.md" "$TARGET_DIR/skills/plan-review-integrator/SKILL.md"
     ln -sfn "$REPO_ROOT/skills/overnight-parallel-lanes/SKILL.md" "$TARGET_DIR/skills/overnight-parallel-lanes/SKILL.md"
+    ln -sfn "$REPO_ROOT/skills/feature-pr-pipeline/SKILL.md" "$TARGET_DIR/skills/feature-pr-pipeline/SKILL.md"
     ln -sfn "$REPO_ROOT/commands/roundtable.md" "$TARGET_DIR/commands/roundtable.md"
     echo "✅ Symlinked Overseer to $TARGET_DIR"
 else
@@ -52,6 +54,7 @@ else
     cp -R "$REPO_ROOT/skills/overseer/references/." "$TARGET_DIR/skills/overseer/references/"
     cp "$REPO_ROOT/skills/plan-review-integrator/SKILL.md" "$TARGET_DIR/skills/plan-review-integrator/"
     cp "$REPO_ROOT/skills/overnight-parallel-lanes/SKILL.md" "$TARGET_DIR/skills/overnight-parallel-lanes/"
+    cp "$REPO_ROOT/skills/feature-pr-pipeline/SKILL.md" "$TARGET_DIR/skills/feature-pr-pipeline/"
     cp "$REPO_ROOT/commands/roundtable.md" "$TARGET_DIR/commands/"
     echo "✅ Copied Overseer to $TARGET_DIR"
 fi
